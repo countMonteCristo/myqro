@@ -72,6 +72,7 @@ public:
     std::string Imprint() const;
 
     size_t Version() const { return version_; }
+    size_t Size() const { return size_; }
 
 private:
     void PlaceSearchPattern(int row, int col);

@@ -21,56 +21,12 @@ Context EncodeProvider::Encode(const std::string& data, CorrectionLevel cl) cons
         throw std::runtime_error(std::format("Unsupported data for {}: {}", GetProviderName(), data));
 
     Context context(data, cl);
-
-    // std::cout << "Data stream:\n";
-    // context.stream.Print(std::cout, "-");
-    // std::cout << "\n";
-
     ConvertInput(data, context);
-
-    // std::cout << "Data stream after ConvertInput:\n";
-    // context.stream.Print(std::cout, "-");
-    // std::cout << "\n";
-
     PrepareServiceFields(context);
-
-    // std::cout << "Data stream after PrepareServiceFields:\n";
-    // context.stream.Print(std::cout, "-");
-    // std::cout << "\n";
-
     AddTailZeros(context);
-
-    // std::cout << "Data stream after AddTailZeros:\n";
-    // context.stream.Print(std::cout, "-");
-    // std::cout << "\n";
-
     AddRequiredVersionTailBytes(context);
-
-    // std::cout << "Data stream after AddRequiredVersionTailBytes:\n";
-    // context.stream.Print(std::cout, "-");
-    // std::cout << "\n";
-
     PrepareBlocks(context);
-
-    // std::cerr << "Data blocks:\n";
-    // for (const Block& b: context.data_blocks)
-    // {
-    //     PrintBlockBits(std::cerr, b, "-");
-    //     std::cerr << "\n";
-    // }
-
-    // std::cerr << "Correction blocks:\n";
-    // for (const auto& b: context.correction_blocks)
-    // {
-    //     PrintArrayBits(std::cerr, b, b.size() * BITS_PER_BYTE, "-");
-    //     std::cerr << "\n";
-    // }
-
     PrepareOutput(context);
-
-    // std::cout << "Output stream after PrepareOutput:\n";
-    // PrintArrayBits(std::cout, context.output, context.output.size() * 8, "-");
-    // std::cout << "\n";
 
     return context;
 }
@@ -96,25 +52,9 @@ void EncodeProvider::PrepareServiceFields(Context& context) const
     }
 
     DataStream result;
-
     result.AppendBits(static_cast<uint8_t>(encoding), context.encoding_field_width);
     result.AppendBits(context.input_data_size, context.data_size_field_width);
-
-    // result.Print(std::cout, "-");
-    // std::cout << '\n';
-
-    // std::cout << "result stream bit size:" << result.Size() << std::endl;
-    // std::cout << "stream stream bit size:" << context.stream.Size() << std::endl;
     result << context.stream;
-
-    // std::cout << "result stream bit size:" << result.Size() << std::endl;
-
-    // std::cout << "context.stream: ";
-    // context.stream.Print(std::cout, "-");
-    // std::cout << '\n';
-    // std::cout << "result stream: ";
-    // result.Print(std::cout, "-");
-    // std::cout << '\n';
 
     context.version = version;
     context.stream = result;
@@ -145,6 +85,7 @@ void EncodeProvider::PrepareBlocks(Context& context) const
     size_t blocks_count = context.GetBlocksCount();
     size_t n_correction_bytes = context.GetCorrectionBytesCount();
 
+    // TODO: log this
     // std::cout << "# of blocks: " << blocks_count << '\n';
     // std::cout << "# of corr bytes: " << n_correction_bytes << '\n';
 
