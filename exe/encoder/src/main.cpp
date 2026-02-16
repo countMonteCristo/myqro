@@ -19,8 +19,17 @@ struct Args
     {
         std::vector<std::string>args(argv, argv + argc);
 
-        size_t i;
-        for (i = 1; i < args.size() - 1; ++i) {
+        bool set_msg = false;
+        for (size_t i = 1; i < args.size(); ++i) {
+            if (args[i][0] != '-')
+            {
+                if (set_msg) throw std::runtime_error("Can't process multiple messages at once");
+
+                msg = args[i];
+                set_msg = true;
+                continue;
+            }
+
             if (args[i] == "-h" || args[i] == "--help")
             {
                 Usage(args[0]);
@@ -78,25 +87,18 @@ struct Args
                 throw std::runtime_error(std::format("Unknown argument: {}", args[i]));
         }
 
-        if (i >= args.size())
+        if (!set_msg)
         {
             Usage(args[0]);
             throw std::runtime_error("`message` was not provided");
         }
-        if (i + 1 < args.size())
-        {
-            Usage(args[0]);
-            throw std::runtime_error("Unknown arguments");
-        }
-
-        msg = args[i];
     }
 
     void Usage(const std::string& program)
     {
         std::ostream& os = std::cout;
         os << "Usage: " << program << " [-h|--help]: show help and exit" << std::endl
-           << "       " << program << "{flags} <message>: encode message into QR-code" << std::endl
+           << "       " << program << " {flags} <message> {flags}: encode message into QR-code" << std::endl
            << std::endl
            << "Flags:" << std::endl
            << "  -e,--encoding <encoding> - type of encoding. Must be one of `num`, `alnum`, `bytes` or `kanji`." << std::endl
