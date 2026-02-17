@@ -2,6 +2,7 @@
 
 #include "datastream.hpp"
 #include "defines.hpp"
+#include "error.hpp"
 
 
 // =============================================================================
@@ -46,21 +47,21 @@ struct Context
     size_t GetBlocksCount() const
     {
         if (version < 1)
-            throw std::runtime_error("Can't get blocks count: invalid version");
+            throw Error("Can't get blocks count: invalid version");
         return BlocksCount.at(cl)[version - 1];
     }
 
     size_t GetCorrectionBytesCount() const
     {
         if (version < 1)
-            throw std::runtime_error("Can't get correction bytes count: invalid version");
+            throw Error("Can't get correction bytes count: invalid version");
         return CorrBlockBytes.at(cl)[version - 1];
     }
 
     size_t GetBytesPerBlock() const
     {
         if (version < 1)
-            throw std::runtime_error("Can't get bytes per block count: invalid version");
+            throw Error("Can't get bytes per block count: invalid version");
         return stream.Size() / GetBlocksCount();
     }
 };

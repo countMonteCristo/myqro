@@ -5,6 +5,8 @@
 #include <fstream>
 
 #include "defines.hpp"
+#include "error.hpp"
+#include "logger.hpp"
 #include "utils.hpp"
 
 
@@ -28,7 +30,7 @@ const char* PatternNameToString(Pattern p)
         case Pattern::VERSION:          return "VERSION";
         case Pattern::DATA:             return "DATA";
     }
-    throw std::runtime_error("Unknown Pattern");
+    throw Error("Unknown Pattern");
 }
 
 // =============================================================================
@@ -126,7 +128,7 @@ void Canvas::SetupVersionCode()
 void Canvas::FillData(CorrectionLevel cl, size_t mask_id, const DataStream& stream)
 {
     if (mask_id >= MaskFunctions.size())
-        throw std::runtime_error(std::format("No such mask_id: {}", mask_id));
+        throw Error(std::format("No such mask_id: {}", mask_id));
 
     static const std::array<Dir, 2> dd[2]{
         {Dir{0, -1}, Dir{-1, 1}},   // up
@@ -276,7 +278,7 @@ void Canvas::DebugPBM(const std::string& fn) const
     std::ofstream os(fn);
 
     if (!os.is_open())
-        throw std::runtime_error("Error opening file " + fn);
+        throw Error(std::format("Error opening file {}", fn));
 
     // TODO: customize this
     static const uint8_t indent = 4;
@@ -366,9 +368,8 @@ void Canvas::PlaceLevelingPattern(int row, int col)
             Cell& cell = At(r, c);
             if (cell.kind == Pattern::SEARCH)
             {
-                // TODO: log debug this
-                // std::cerr << "Can't place leveling pattern module at " << r << "," << c << ": module is occupied with "
-                //           << PatternNameToString(cell.kind) << "\n";
+                LogDebug("Can't place leveling pattern module at ({},{}): module is occupied with {}",
+                         r, c, PatternNameToString(cell.kind));
                 return;
             }
         }
@@ -382,9 +383,8 @@ void Canvas::PlaceLevelingPattern(int row, int col)
             Cell& cell = At(r, c);
             if (cell.kind != Pattern::UNKNOWN)
             {
-                // TODO: log debug this
-                // std::cerr << "Can't place leveling pattern module at " << r << "," << c << ": module is occupied with "
-                //           << PatternNameToString(cell.kind) << "\n";
+                LogDebug("Can't place leveling pattern module at ({},{}): module is occupied with {}",
+                         r, c, PatternNameToString(cell.kind));
                 continue;
             }
 

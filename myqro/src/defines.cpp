@@ -1,7 +1,9 @@
 #include "defines.hpp"
 
 #include <format>
-#include <stdexcept>
+// #include <stdexcept>
+
+#include "error.hpp"
 
 
 // =============================================================================
@@ -17,7 +19,7 @@ EncodingType EncodingTypeFromString(const std::string& type_str)
     if (type_str == "alnum") return EncodingType::ALPHANUMERIC;
     if (type_str == "bytes") return EncodingType::BYTES;
     if (type_str == "kanji") return EncodingType::KANJI;
-    throw std::runtime_error("Unknown encoding type parsed: " + type_str);
+    throw Error("Unknown encoding type parsed: " + type_str);
 }
 
 // =============================================================================
@@ -31,7 +33,7 @@ const char* EncodingTypeToString(EncodingType e)
         case EncodingType::BYTES: return "bytes";
         case EncodingType::KANJI: return "kanji";
     }
-    throw std::runtime_error("Can not convert unknown encoding type to string");
+    throw Error("Can not convert unknown encoding type to string");
 }
 
 // =============================================================================
@@ -45,7 +47,7 @@ const char* CorrectionLevelToString(CorrectionLevel cl)
         case CorrectionLevel::Q: return "Q";
         case CorrectionLevel::H: return "H";
     }
-    throw std::runtime_error("Can not convert unknown correction level to string");
+    throw Error("Can not convert unknown correction level to string");
 }
 
 // =============================================================================
@@ -56,7 +58,7 @@ CorrectionLevel CorrectionLevelFromString(const std::string& s)
     if (s == "M") return CorrectionLevel::M;
     if (s == "Q") return CorrectionLevel::Q;
     if (s == "H") return CorrectionLevel::H;
-    throw std::runtime_error(std::format("Unknown correction level: {}", s));
+    throw Error(std::format("Unknown correction level: {}", s));
 }
 
 // =============================================================================

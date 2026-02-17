@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "encoder.hpp"
+#include "logger.hpp"
 
 
 // =============================================================================
@@ -14,6 +15,7 @@ struct Args
     myqro::CorrectionLevel cl = myqro::CorrectionLevel::M;
     int mask_id = 0;
     std::string output = "out.ppm";
+    std::string log_level_str = "info";
 
     void Init(int argc, char* argv[])
     {
@@ -83,6 +85,13 @@ struct Args
                                              "Negative value means automatic choice.");
                 }
             }
+            else if (args[i] == "-l" || args[i] == "--log-level")
+            {
+                if (i + 1 < args.size())
+                    log_level_str = args[++i];
+                else
+                    throw std::runtime_error("--log-level option requires an argument.");
+            }
             else
                 throw std::runtime_error(std::format("Unknown argument: {}", args[i]));
         }
@@ -107,6 +116,7 @@ struct Args
            << "  -m,--mask <mask_id>      - identificator of mask function. Negative value means choosing the best mask." << std::endl
            << "                             Integer value from range [0; 7] identify specific function." << std::endl
            << "  -o,--output <filename>   - output image (only PPM supported for now)." << std::endl
+           << "  -l,--log-level <level>   - set logging level. Must be one of `critical`, `error`, `warning`, `debug`, `info` or `void`" << std::endl
            << std::endl
            << "Required arguments:" << std::endl
            << "  message - message to encode" << std::endl;
@@ -120,14 +130,15 @@ int main(int argc, char* argv[])
     Args args;
 
     args.Init(argc, argv);
+    myqro::SetLogLevel(args.log_level_str);
 
     myqro::Canvas canvas = myqro::Encoder::Encode(args.msg, args.cl, args.encoding, args.mask_id);
     canvas.DebugPBM(args.output);
 
-    std::cout << "[DEBUG] Version: " << canvas.Version() << std::endl;
+    LogDebug("Version: {}", canvas.Version());
+
     canvas.DebugOutput(std::cout);
     std::cout << std::endl;
-    // std::cout << "imprint: <" << canvas.Imprint() << ">" << std::endl;
     std::cout << "Generated image: " << args.output << std::endl;
 
     return 0;

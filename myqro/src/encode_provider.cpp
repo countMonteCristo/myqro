@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <format>
-#include <stdexcept>
 
+#include "logger.hpp"
 #include "utils.hpp"
 
 
@@ -18,7 +18,7 @@ namespace myqro
 Context EncodeProvider::Encode(const std::string& data, CorrectionLevel cl) const
 {
     if (!IsDataSupported(data))
-        throw std::runtime_error(std::format("Unsupported data for {}: {}", GetProviderName(), data));
+        throw Error(std::format("Unsupported data for {}: {}", GetProviderName(), data));
 
     Context context(data, cl);
     ConvertInput(data, context);
@@ -34,6 +34,8 @@ Context EncodeProvider::Encode(const std::string& data, CorrectionLevel cl) cons
 void EncodeProvider::PrepareServiceFields(Context& context) const
 {
     auto [version, max_data_size] = EstimateVersion(context.stream, context.cl);
+    LogDebug("Estimated version={} max_data_size={}", version, max_data_size);
+
     size_t max_version = (version <= 9) ? 9 : (version <= 26) ? 26 : MAX_VERSION;
     EncodingType encoding = GetEncodingType();
 
@@ -43,11 +45,11 @@ void EncodeProvider::PrepareServiceFields(Context& context) const
     {
         version += 1;
         if (version > MAX_VERSION)
-            throw std::runtime_error(std::format("Data stream ({}) with service fields ({}, {}) "
-                                                 "is too big for correction level {}",
-                                                 context.stream.Size(), context.encoding_field_width,
-                                                 context.data_size_field_width,
-                                                 CorrectionLevelToString(context.cl)));
+            throw Error(std::format("Data stream ({}) with service fields ({}, {}) "
+                                    "is too big for correction level {}",
+                                    context.stream.Size(), context.encoding_field_width,
+                                    context.data_size_field_width,
+                                    CorrectionLevelToString(context.cl)));
         max_data_size = VersionCorrectionMaxDataSize.at(context.cl).at(version - 1);
     }
 
@@ -65,7 +67,10 @@ void EncodeProvider::AddTailZeros(Context& context) const
 {
     size_t rem = context.stream.Size() % BITS_PER_BYTE;
     if (rem > 0)
+    {
+        LogDebug("Add {} tailing zero bits", BITS_PER_BYTE - rem);
         context.stream.SetBitSize(context.stream.Size() + BITS_PER_BYTE - rem);
+    }
 }
 
 void EncodeProvider::AddRequiredVersionTailBytes(Context& context) const
@@ -85,9 +90,8 @@ void EncodeProvider::PrepareBlocks(Context& context) const
     size_t blocks_count = context.GetBlocksCount();
     size_t n_correction_bytes = context.GetCorrectionBytesCount();
 
-    // TODO: log this
-    // std::cout << "# of blocks: " << blocks_count << '\n';
-    // std::cout << "# of corr bytes: " << n_correction_bytes << '\n';
+    LogDebug("# of blocks: {}", blocks_count);
+    LogDebug("# of corr bytes: {}", n_correction_bytes);
 
     context.data_blocks = context.stream.GenerateBlocks(blocks_count);
     context.correction_blocks.reserve(blocks_count);
@@ -128,8 +132,8 @@ std::pair<size_t, size_t> EncodeProvider::EstimateVersion(const DataStream& stre
         if (sizes[version - 1] > stream.Size())
             return {version, sizes[version - 1]};
     }
-    throw std::runtime_error(std::format("No versions available for correction level {} and data bit size {}",
-                                         CorrectionLevelToString(cl) ,stream.Size()));
+    throw Error(std::format("No versions available for correction level {} and data bit size {}",
+                            CorrectionLevelToString(cl) ,stream.Size()));
 };
 
 // =============================================================================
@@ -240,8 +244,8 @@ EncodeProviderPtr EncodeProviderFactory::GetProvider(EncodingType type)
         case EncodingType::ALPHANUMERIC : return std::make_unique<AlphaNumericEncodeProvider>();
         case EncodingType::NUNERIC      : return std::make_unique<NumericEncodeProvider>();
         case EncodingType::BYTES        : return std::make_unique<BytesEncodeProvider>();
-        case EncodingType::KANJI        : throw std::runtime_error("Kanji encoder is not supported");
-        default                         : throw std::runtime_error("Unknown encoding type");
+        case EncodingType::KANJI        : throw Error("Kanji encoder is not supported");
+        default                         : throw Error("Unknown encoding type");
     }
 }
 

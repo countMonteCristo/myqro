@@ -3,6 +3,7 @@
 #include <format>
 
 #include "defines.hpp"
+#include "error.hpp"
 
 
 // =============================================================================
@@ -37,7 +38,7 @@ uint8_t DataStream::BitAt(size_t pos) const
 void DataStream::SetBitAt(size_t pos, uint8_t bit)
 {
     if (bit > 1)
-        throw std::runtime_error("Only values 0 and 1 are suported as bit value");
+        throw Error("Only values 0 and 1 are suported as bit value");
 
     size_t byte_pos = pos / BITS_PER_BYTE;
     size_t rem = pos % BITS_PER_BYTE;
