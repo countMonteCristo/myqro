@@ -169,27 +169,6 @@ void Canvas::FillData(CorrectionLevel cl, size_t mask_id, const DataStream& stre
 
 // =============================================================================
 
-// TODO: add indent
-// TODO: add scale
-void Canvas::DebugOutput(std::ostream& os) const
-{
-    for (size_t row = 0; row < size_; row++)
-    {
-        for (size_t col = 0; col < size_; col++)
-        {
-            const Cell& c = At(row, col);
-            os << " #"[c.value];
-            // if (c.kind == Pattern::UNKNOWN)
-            //     os << "•";
-            // else if (c.value == 1) os << "□";
-            // else os << "■";
-        }
-        os << std::endl;
-    }
-}
-
-// =============================================================================
-
 void Canvas::DebugPatterns(std::ostream& os) const
 {
     for (size_t row = 0; row < size_; row++)
@@ -268,38 +247,6 @@ void Canvas::DebugOutputFillDataOrder(std::ostream& os, CorrectionLevel cl, size
         }
         os << std::endl;
     }
-}
-
-// =============================================================================
-
-void Canvas::DebugPBM(const std::string& fn) const
-{
-    std::ofstream os(fn);
-
-    if (!os.is_open())
-        throw Error(std::format("Error opening file {}", fn));
-
-    // TODO: customize this
-    static const uint8_t indent = 4;
-
-    os << "P1" << std::endl;
-    os << size_ + 2*indent << " " << size_ + 2*indent << std::endl;
-
-    int s = static_cast<int>(size_);
-
-    for (int row = -indent; row < s + indent; row++)
-    {
-        for (int col = -indent; col < s + indent; col++)
-        {
-            if (!IsInside(row, col))
-                os << "0";
-            else
-                os << "01"[At(row, col).value];
-            if (col < s - 1) os << ' ';
-        }
-        os << std::endl;
-    }
-    os.close();
 }
 
 // =============================================================================

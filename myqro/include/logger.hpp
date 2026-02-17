@@ -18,11 +18,11 @@ namespace myqro
 
 enum class LogLevel : size_t
 {
-    CRITICAL    = 0,
-    ERROR       = 10,
-    WARNING     = 20,
-    DEBUG       = 30,
+    DEBUG       = 20,
     INFO        = 40,
+    WARNING     = 60,
+    ERROR       = 80,
+    CRITICAL    = 100,
     VOID        = std::numeric_limits<size_t>::max(),
 };
 

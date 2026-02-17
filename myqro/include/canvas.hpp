@@ -61,13 +61,12 @@ public:
 
     void FillData(CorrectionLevel cl, size_t mask_id, const DataStream& stream);
 
-    void DebugOutput(std::ostream& os) const;
     void DebugPatterns(std::ostream& os) const;
     void DebugOutputFillDataOrder(std::ostream& os, CorrectionLevel cl, size_t mask_id);
-    void DebugPBM(const std::string& fn) const;
 
     Cell& At(size_t row, size_t col) { return cells_[Index(row, col)]; }
     const Cell& At(size_t row, size_t col) const { return cells_[Index(row, col)]; }
+    bool IsInside(int row, int col) const { return row >= 0 && row < static_cast<int>(size_) && col >= 0 && col < static_cast<int>(size_); }
 
     size_t Penalty(size_t mask_id) const;
 
@@ -80,7 +79,6 @@ private:
     void PlaceSearchPattern(int row, int col);
     void PlaceLevelingPattern(int row, int col);
     void PlaceCorrectionMaskCode(CorrectionLevel cl, size_t mask_id);
-    bool IsInside(int row, int col) const { return row >= 0 && row < static_cast<int>(size_) && col >= 0 && col < static_cast<int>(size_); }
     size_t Index(int row, int col) const { return row*size_ + col; }
 
     bool HasSameColorSquare(size_t row, size_t col, size_t sq) const;

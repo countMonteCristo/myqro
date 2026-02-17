@@ -3,7 +3,17 @@
 
 #include "encoder.hpp"
 #include "logger.hpp"
+#include "outputter.hpp"
 
+
+// =============================================================================
+
+template<typename... Args>
+void ExitWithErrorMessage(std::format_string<Args&&...> format, Args&&... args)
+{
+    std::cerr << std::format(format, std::forward<Args>(args)...) << std::endl;
+    std::exit(1);
+}
 
 // =============================================================================
 
@@ -14,6 +24,8 @@ struct Args
     myqro::EncodingType encoding = myqro::EncodingType::BYTES;
     myqro::CorrectionLevel cl = myqro::CorrectionLevel::M;
     int mask_id = 0;
+    int scale = 1;
+    int indent = 4;
     std::string output = "out.ppm";
     std::string log_level_str = "info";
 
@@ -25,7 +37,8 @@ struct Args
         for (size_t i = 1; i < args.size(); ++i) {
             if (args[i][0] != '-')
             {
-                if (set_msg) throw std::runtime_error("Can't process multiple messages at once");
+                if (set_msg)
+                    ExitWithErrorMessage("Can't process multiple messages at once");
 
                 msg = args[i];
                 set_msg = true;
@@ -35,7 +48,7 @@ struct Args
             if (args[i] == "-h" || args[i] == "--help")
             {
                 Usage(args[0]);
-                exit(0);
+                std::exit(0);
             }
             // else if (args[i] == "-v" || args[i] == "--version")
             // {
@@ -54,51 +67,75 @@ struct Args
                 if (i + 1 < args.size())
                     encoding = myqro::EncodingTypeFromString(args[++i]);
                 else
-                    throw std::runtime_error("--encoding option requires an argument. Possible values: num, alnum, bytes, kanji");
+                    ExitWithErrorMessage("--encoding option requires an argument. Possible values: num, alnum, bytes, kanji");
             }
             else if (args[i] == "-o" || args[i] == "--output")
             {
                 if (i + 1 < args.size())
                     output = args[++i];
                 else
-                    throw std::runtime_error("--output option requires an argument.");
+                    ExitWithErrorMessage("--output option requires an argument.");
             }
             else if (args[i] == "-c" || args[i] == "--correction")
             {
                 if (i + 1 < args.size())
                     cl = myqro::CorrectionLevelFromString(args[++i]);
                 else
-                    throw std::runtime_error("--correction option requires an argument. Possible values: L, M, Q, H");
+                    ExitWithErrorMessage("--correction option requires an argument. Possible values: L, M, Q, H");
             }
             else if (args[i] == "-m" || args[i] == "--mask")
             {
                 if (i + 1 < args.size())
-                {
                     mask_id = std::stoi(args[++i]);
-                }
                 else
-                {
-                    Usage(args[0]);
-                    throw std::runtime_error("--mask option requires an argument. Possible values are from int range [0-7]. "
-                                             "Negative value means automatic choice.");
-                }
+                    ExitWithErrorMessage("--mask option requires an argument. Possible values are from int range [0-7]. "
+                                         "Negative value means automatic choice.");
             }
             else if (args[i] == "-l" || args[i] == "--log-level")
             {
                 if (i + 1 < args.size())
                     log_level_str = args[++i];
                 else
-                    throw std::runtime_error("--log-level option requires an argument.");
+                    ExitWithErrorMessage("--log-level option requires an argument.");
+            }
+            else if (args[i] == "-s" || args[i] == "--scale")
+            {
+                if (i + 1 < args.size())
+                    scale = std::stoi(args[++i]);
+                else
+                    ExitWithErrorMessage("--scale option requires an argument.");
+            }
+            else if (args[i] == "-i" || args[i] == "--indent")
+            {
+                if (i + 1 < args.size())
+                    indent = std::stoi(args[++i]);
+                else
+                    ExitWithErrorMessage("--indent option requires an argument.");
             }
             else
-                throw std::runtime_error(std::format("Unknown argument: {}", args[i]));
+                ExitWithErrorMessage("Unknown argument: {}", args[i]);
         }
 
         if (!set_msg)
         {
             Usage(args[0]);
-            throw std::runtime_error("`message` was not provided");
+            ExitWithErrorMessage("`message` was not provided");
         }
+
+        Validate();
+    }
+
+    void Validate() const
+    {
+        if (mask_id >= static_cast<int>(myqro::MAX_MASK_ID))
+            ExitWithErrorMessage("`mask_id` shoud be negative or in range [{}, {}]",
+                                 myqro::MIN_MASK_ID, myqro::MAX_MASK_ID);
+
+        if (scale < 1)
+            ExitWithErrorMessage("`scale` must be > 1");
+
+        if (indent < 0)
+            ExitWithErrorMessage("`indent` must be > 0");
     }
 
     void Usage(const std::string& program)
@@ -113,7 +150,9 @@ struct Args
            << "                             Must be one of `L` (7%), `M` (15%), `Q` (25%), `H` (30%)" << std::endl
            << "  -m,--mask <mask_id>      - identificator of mask function. Negative value means choosing the best mask." << std::endl
            << "                             Integer value from range [0; 7] identify specific function." << std::endl
-           << "  -o,--output <filename>   - output image (only PPM supported for now)." << std::endl
+           << "  -o,--output <filename>   - output image (supported formats: ppm, svg, console)." << std::endl
+           << "  -s,--scale <int>         - scaling factor for output image (default 1)" << std::endl
+           << "  -i,--indent <int>        - indentation for output QR code (default 4)"
            << "  -l,--log-level <level>   - set logging level. Must be one of `critical`, `error`, `warning`, `debug`, `info` or `void`" << std::endl
            << std::endl
            << "Required arguments:" << std::endl
@@ -130,14 +169,25 @@ int main(int argc, char* argv[])
     args.Init(argc, argv);
     myqro::SetLogLevel(args.log_level_str);
 
-    myqro::Canvas canvas = myqro::Encoder::Encode(args.msg, args.cl, args.encoding, args.mask_id);
-    canvas.DebugPBM(args.output);
+    std::unique_ptr<myqro::Outputter> outputter;
+    if (args.output == "console")
+        outputter = std::make_unique<myqro::ConsoleOutputter>(std::cout);
+    else
+    {
+        std::filesystem::path path(args.output);
+        std::string ext = path.extension();
+        if (ext == ".ppm" || ext == ".PPM")
+            outputter = std::make_unique<myqro::PBMOutputter>(path);
+        else if (ext == ".svg" || ext == ".SVG")
+            outputter = std::make_unique<myqro::SvgOutputter>(path);
+        else
+            ExitWithErrorMessage("Unsupported output format: {}", ext);
+    }
 
+    myqro::Canvas canvas = myqro::Encoder::Encode(args.msg, args.cl, args.encoding, args.mask_id);
     LogDebug("Version: {}", canvas.Version());
 
-    canvas.DebugOutput(std::cout);
-    std::cout << std::endl;
-    std::cout << "Generated image: " << args.output << std::endl;
+    outputter->Output(canvas, myqro::OutputOptions(args.scale, args.indent));
 
     return 0;
 }
