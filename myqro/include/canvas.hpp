@@ -69,6 +69,8 @@ public:
     Cell& At(size_t row, size_t col) { return cells_[Index(row, col)]; }
     const Cell& At(size_t row, size_t col) const { return cells_[Index(row, col)]; }
 
+    size_t Penalty(size_t mask_id) const;
+
     std::string Imprint() const;
 
     size_t Version() const { return version_; }
@@ -80,6 +82,9 @@ private:
     void PlaceCorrectionMaskCode(CorrectionLevel cl, size_t mask_id);
     bool IsInside(int row, int col) const { return row >= 0 && row < static_cast<int>(size_) && col >= 0 && col < static_cast<int>(size_); }
     size_t Index(int row, int col) const { return row*size_ + col; }
+
+    bool HasSameColorSquare(size_t row, size_t col, size_t sq) const;
+    bool HasColorStripe(size_t row, size_t col, int dr, int dc, size_t len, uint8_t color=WHITE) const;
 
 private:
     size_t version_;

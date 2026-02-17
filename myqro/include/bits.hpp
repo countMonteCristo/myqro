@@ -1,7 +1,7 @@
 #pragma once
 
-#include "canvas.hpp"
-#include "encode_provider.hpp"
+#include <concepts>
+#include <cstdint>
 
 
 // =============================================================================
@@ -11,15 +11,12 @@ namespace myqro
 
 // =============================================================================
 
-class Encoder
+template <std::integral T>
+uint8_t GetBit(T value, uint8_t pos)
 {
-public:
-    static Canvas Encode(const std::string& msg, CorrectionLevel cl = CorrectionLevel::M,
-                         EncodingType encoding = EncodingType::BYTES, int mask_id = 0);
-
-private:
-    static Canvas FindBestMask(Canvas& c, const Context& ctx);
-};
+    static const T one = 1;
+    return static_cast<uint8_t>(((value & (one << pos)) >> pos) & one);
+}
 
 // =============================================================================
 

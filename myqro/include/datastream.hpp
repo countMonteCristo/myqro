@@ -7,6 +7,7 @@
 
 #include <iostream>
 
+#include "bits.hpp"
 #include "defines.hpp"
 
 
@@ -27,6 +28,11 @@ public:
     DataStream() : bit_size_(0) {}
     DataStream(ArrayType&& array) :
         data_(std::move(array)),
+        bit_size_(BITS_PER_BYTE * data_.size())
+    {}
+
+    DataStream(const ArrayType& array) :
+        data_(array),
         bit_size_(BITS_PER_BYTE * data_.size())
     {}
 

@@ -75,8 +75,6 @@ struct Args
                 if (i + 1 < args.size())
                 {
                     mask_id = std::stoi(args[++i]);
-                    if (mask_id < 0)
-                        throw std::runtime_error("Automatic mask choosing is not implemented yet");
                 }
                 else
                 {

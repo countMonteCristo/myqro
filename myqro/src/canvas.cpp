@@ -1,9 +1,12 @@
 #include "canvas.hpp"
 
+#include <cmath>
 #include <iostream>
+#include <numeric>
 #include <format>
 #include <fstream>
 
+#include "bits.hpp"
 #include "defines.hpp"
 #include "error.hpp"
 #include "logger.hpp"
@@ -68,7 +71,7 @@ void Canvas::SetupLevelingPatterns()
 
 void Canvas::SetupSyncLines()
 {
-    uint8_t value = 1;
+    uint8_t value = BLACK;
     static const int b = SEARCH_PATTERN_SIZE - 2;
     for (int a = size_ - SEARCH_PATTERN_SIZE + 1; a > b; a--)
     {
@@ -94,30 +97,26 @@ void Canvas::SetupSyncLines()
 
 void Canvas::SetupVersionCode()
 {
+    static constexpr int mask_size = 3;
+    static constexpr int bit_size = 6;
     if (version_ >= 7)
     {
         uint32_t code = VersionCode[version_ - 1];
-        uint32_t mask[3] = {
-            (code & 0b111111000000000000) >> (2*6),
-            (code & 0b000000111111000000) >> (1*6),
-            (code & 0b000000000000111111) >> (0*6),
+        uint32_t mask[mask_size] = {
+            (code & 0b111111000000000000) >> (2*bit_size),
+            (code & 0b000000111111000000) >> (1*bit_size),
+            (code & 0b000000000000111111) >> (0*bit_size),
         };
 
-        int start = size_ - SEARCH_PATTERN_SIZE - 3;
-        for (int r = 0; r < 3; r++)
+        int start = size_ - SEARCH_PATTERN_SIZE - mask_size;
+        for (int r = 0; r < mask_size; r++)
         {
             uint32_t m = mask[r];
-            for (int c = 0; c < 6; c++)
+            for (int c = 0; c < bit_size; c++)
             {
-                uint8_t value = (m & (1 << (6 - c - 1))) >> (6 - c - 1);
-
-                Cell& c1 = At(start + r, c);
-                c1.kind = Pattern::VERSION;
-                c1.value = value;
-
-                Cell& c2 = At(c, start + r);
-                c2.kind = Pattern::VERSION;
-                c2.value = value;
+                uint8_t value = GetBit(m, bit_size - c - 1);
+                At(start + r, c) = {Pattern::VERSION, value};
+                At(c, start + r) = {Pattern::VERSION, value};
             }
         }
     }
@@ -305,6 +304,126 @@ void Canvas::DebugPBM(const std::string& fn) const
 
 // =============================================================================
 
+size_t Canvas::Penalty(size_t mask_id) const
+{
+    size_t result = 0;
+
+    static const size_t square_penalty = 3;
+    static const size_t pattern_penalty = 120;
+
+    // Find horizontal bars 5+ units long
+    static const size_t min_len = 5;
+    for (size_t row = 0; row < size_; ++row)
+    {
+        for (size_t col = 0; col < size_;)
+        {
+            uint8_t color = At(row, col).value;
+            size_t i = 1;
+            while (col + i < size_ && At(row, col + i).value == color)
+                ++i;
+
+            if (i >= min_len) result += (i - 2);
+            col += i;
+        }
+    }
+    // Find vertical bars 5+ units long
+    for (size_t col = 0; col < size_; ++col)
+    {
+        for (size_t row = 0; row < size_;)
+        {
+            uint8_t color = At(row, col).value;
+            size_t i = 1;
+            while (row + i < size_ && At(row + i, col).value == color)
+                ++i;
+
+            if (i >= min_len) result += (i - 2);
+            row += i;
+        }
+    }
+
+    // Find 2x2 squares of same color
+    const size_t sq = 2;
+    for (size_t row = 0; row + sq < size_ + 1; ++row)
+    {
+        for (size_t col = 0; col + sq < size_ + 1; ++col)
+            if (HasSameColorSquare(row, col, sq)) result += square_penalty;
+    }
+
+    // Find horizontal "# ### #" with at least 4 possible white modules at one of the sides (or both)
+    static const size_t pat_len = 7;
+    static const size_t strip_len = 4;
+    for (size_t row = 0; row < size_; ++row)
+    {
+        for (size_t col = 0; col + pat_len < size_ + 1;)
+        {
+            if (At(row, col+0).value == BLACK &&
+                At(row, col+1).value == WHITE &&
+                At(row, col+2).value == BLACK &&
+                At(row, col+3).value == BLACK &&
+                At(row, col+4).value == BLACK &&
+                At(row, col+5).value == WHITE &&
+                At(row, col+6).value == BLACK)
+            {
+                bool has_before = (col > strip_len) ? HasColorStripe(row, col - 1, 0, -1, strip_len) : false;
+                bool has_after = (col + pat_len < size_) ? HasColorStripe(row, col + pat_len, 0, 1, strip_len) : false;
+
+                if (has_before || has_after)
+                    result += pattern_penalty;
+
+                if (has_after)
+                    col += pat_len + strip_len;
+                else if (has_before)
+                    col += pat_len;
+                else
+                    col += 1;
+            }
+            else
+                ++col;
+        }
+    }
+
+    // Find vertical "# ### #" with at least 4 possible white modules at one of the sides (or both)
+    for (size_t col = 0; col < size_; ++col)
+    {
+        for (size_t row = 0; row + pat_len < size_ + 1;)
+        {
+            if (At(row+0, col).value == BLACK &&
+                At(row+1, col).value == WHITE &&
+                At(row+2, col).value == BLACK &&
+                At(row+3, col).value == BLACK &&
+                At(row+4, col).value == BLACK &&
+                At(row+5, col).value == WHITE &&
+                At(row+6, col).value == BLACK)
+            {
+                bool has_before = (row > strip_len) ? HasColorStripe(row-1, col, -1, 0, strip_len) : false;
+                bool has_after = (row + pat_len < size_) ? HasColorStripe(row+pat_len, col, 1, 0, strip_len) : false;
+
+                if (has_before || has_after)
+                    result += pattern_penalty;
+
+                if (has_after)
+                    row += pat_len + strip_len;
+                else if (has_before)
+                    row += pat_len;
+                else
+                    row += 1;
+            }
+            else
+                ++row;
+        }
+    }
+
+    size_t count_black = std::accumulate(cells_.begin(), cells_.end(), 0ULL,
+                                         [](size_t acc, const Cell& c) { return acc + c.value; });
+
+    result += static_cast<size_t>(std::fabs(100 * static_cast<float>(count_black) / (size_ * size_) - 50)) * 2;
+
+    LogDebug("Penalty: mask={} result={}", mask_id, result);
+    return result;
+}
+
+// =============================================================================
+
 std::string Canvas::Imprint() const
 {
     std::string result(cells_.size(), '0');
@@ -331,26 +450,26 @@ void Canvas::PlaceSearchPattern(int row, int col)
             // самая внешняя белая граница
             if (r == row || r == row + SEARCH_PATTERN_SIZE || c == col || c == col + SEARCH_PATTERN_SIZE)
             {
-                cell.value = 0;
+                cell.value = WHITE;
                 continue;
             }
 
             // внешняя чёрная граница
             if (r == row + 1 || r == row + SEARCH_PATTERN_SIZE - 1 || c == col + 1 || c == col + SEARCH_PATTERN_SIZE - 1)
             {
-                cell.value = 1;
+                cell.value = BLACK;
                 continue;
             }
 
             // внутренняя белая рамка
             if (r == row + 2 || r == row + SEARCH_PATTERN_SIZE - 2 || c == col + 2 || c == col + SEARCH_PATTERN_SIZE - 2)
             {
-                cell.value = 0;
+                cell.value = WHITE;
                 continue;
             }
 
             // внутренний чёрный квадрат 3x3
-            cell.value = 1;
+            cell.value = BLACK;
         }
     }
 }
@@ -359,7 +478,7 @@ void Canvas::PlaceSearchPattern(int row, int col)
 
 void Canvas::PlaceLevelingPattern(int row, int col)
 {
-    // check if levelin pattern intersects with search pattern
+    // check if leveling pattern intersects with search pattern
     for (int r = row - 2; r <= row + 2; r++)
     {
         for (int c = col - 2; c <= col + 2; c++)
@@ -390,9 +509,9 @@ void Canvas::PlaceLevelingPattern(int row, int col)
 
             cell.kind = Pattern::LEVELING;
             if (r == row - 2 || r == row + 2 || c == col - 2 || c == col + 2 || (r == row && c == col))
-                cell.value = 1;
+                cell.value = BLACK;
             else
-                cell.value = 0;
+                cell.value = WHITE;
         }
     }
 }
@@ -401,62 +520,76 @@ void Canvas::PlaceLevelingPattern(int row, int col)
 
 void Canvas::PlaceCorrectionMaskCode(CorrectionLevel cl, size_t mask_id)
 {
+    static constexpr size_t code_size = 2*SEARCH_PATTERN_SIZE - 1;
     size_t code = CorrectionLevelMaskCode.at(cl)[mask_id];
 
     // vertical part of code right to the bottom left search square
     for (int r = 0; r < SEARCH_PATTERN_SIZE - 1; r++)
     {
-        size_t shift  = 15 - r - 1;
-        int row = size_ - 1 - r;
-        uint8_t value = (code & (1 << shift)) >> shift;
-
-        Cell& cell = At(row, SEARCH_PATTERN_SIZE);
-        cell.kind = Pattern::MASK_CORRECTION;
-        cell.value = value;
+        uint8_t value = GetBit(code, code_size - r - 1);
+        At(size_ - 1 - r, SEARCH_PATTERN_SIZE) = {Pattern::MASK_CORRECTION, value};
     }
 
     // this square must always be black
-    At(size_ - SEARCH_PATTERN_SIZE, SEARCH_PATTERN_SIZE) = Cell(Pattern::MASK_CORRECTION, 1);
+    At(size_ - SEARCH_PATTERN_SIZE, SEARCH_PATTERN_SIZE) = {Pattern::MASK_CORRECTION, 1};
 
     // horisontal part of code below the top right search square
     for (int c = 0; c < SEARCH_PATTERN_SIZE; c++)
     {
-        size_t shift  = 15 - c - SEARCH_PATTERN_SIZE;
-        int col = size_ - SEARCH_PATTERN_SIZE + c;
-        uint8_t value = (code & (1 << shift)) >> shift;
-
-        Cell& cell = At(SEARCH_PATTERN_SIZE, col);
-        cell.kind = Pattern::MASK_CORRECTION;
-        cell.value = value;
+        uint8_t value = GetBit(code, code_size - c - SEARCH_PATTERN_SIZE);
+        At(SEARCH_PATTERN_SIZE, size_ - SEARCH_PATTERN_SIZE + c) = {Pattern::MASK_CORRECTION, value};
     }
 
     // horisontal part of code below the top left search square
     for (int c = 0; c < SEARCH_PATTERN_SIZE - 1; c++)
     {
-        size_t shift  = 15 - c - 1;
+        uint8_t value = GetBit(code, code_size - c - 1);
         int col = c;
         if (col >= SEARCH_PATTERN_SIZE - 2)
             col += 1;
-        uint8_t value = (code & (1 << shift)) >> shift;
 
-        Cell& cell = At(SEARCH_PATTERN_SIZE, col);
-        cell.kind = Pattern::MASK_CORRECTION;
-        cell.value = value;
+        At(SEARCH_PATTERN_SIZE, col) = {Pattern::MASK_CORRECTION, value};
     }
 
     // vertical part of code right to the top left search square
     for (int r = 0; r < SEARCH_PATTERN_SIZE; r++)
     {
-        size_t shift  = 15 - r - SEARCH_PATTERN_SIZE;
+        uint8_t value = GetBit(code, code_size - r - SEARCH_PATTERN_SIZE);
         int row = SEARCH_PATTERN_SIZE - r;
         if (row <= SEARCH_PATTERN_SIZE - 2)
             row -= 1;
-        uint8_t value = (code & (1 << shift)) >> shift;
 
-        Cell& cell = At(row, SEARCH_PATTERN_SIZE);
-        cell.kind = Pattern::MASK_CORRECTION;
-        cell.value = value;
+        At(row, SEARCH_PATTERN_SIZE) = {Pattern::MASK_CORRECTION, value};
     }
+}
+
+// =============================================================================
+
+bool Canvas::HasSameColorSquare(size_t row, size_t col, size_t sq) const
+{
+    uint8_t color = At(row, col).value;
+    for (size_t dr = 0; dr < sq; ++dr)
+    {
+        for (size_t dc = 0; dc < sq; ++dc)
+        {
+            if (!IsInside(row+dr, col+dc) || At(row+dr, col+dc).value != color)
+                return false;
+        }
+    }
+    return true;
+}
+
+// =============================================================================
+
+bool Canvas::HasColorStripe(size_t row, size_t col, int dr, int dc, size_t len, uint8_t color) const
+{
+    int r = static_cast<int>(row);
+    int c = static_cast<int>(col);
+    for (size_t i = 0; i < len; (r+=dr, c+=dc, ++i))
+    {
+        if (!IsInside(r, c) || At(r, c).value != color) return false;
+    }
+    return true;
 }
 
 // =============================================================================

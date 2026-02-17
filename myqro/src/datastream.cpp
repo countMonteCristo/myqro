@@ -5,6 +5,8 @@
 #include "defines.hpp"
 #include "error.hpp"
 
+#include "logger.hpp"
+
 
 // =============================================================================
 
@@ -29,8 +31,7 @@ uint8_t DataStream::BitAt(size_t pos) const
     size_t byte_pos = pos / BITS_PER_BYTE;
     uint8_t rem = static_cast<uint8_t>(pos % BITS_PER_BYTE);
     uint8_t byte = data_.at(byte_pos);
-    uint8_t shift = static_cast<uint8_t>(BITS_PER_BYTE - 1);
-    return static_cast<uint8_t>(byte << rem) >> shift;
+    return GetBit(byte, BITS_PER_BYTE - rem - 1);
 }
 
 // =============================================================================
