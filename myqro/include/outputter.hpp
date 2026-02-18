@@ -128,6 +128,18 @@ public:
 
 // =============================================================================
 
+class EpsOutputter : public FileOutputter
+{
+public:
+    EpsOutputter(const std::filesystem::path& path) :
+        FileOutputter(path)
+    {}
+
+    void OutputImpl(const Canvas& canvas, const OutputOptions& options) final;
+};
+
+// =============================================================================
+
 } // namespace myqro
 
 // =============================================================================

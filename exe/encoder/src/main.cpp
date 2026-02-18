@@ -180,6 +180,8 @@ int main(int argc, char* argv[])
             outputter = std::make_unique<myqro::PBMOutputter>(path);
         else if (ext == ".svg" || ext == ".SVG")
             outputter = std::make_unique<myqro::SvgOutputter>(path);
+        else if (ext == ".eps" || ext == ".EPS")
+            outputter = std::make_unique<myqro::EpsOutputter>(path);
         else
             ExitWithErrorMessage("Unsupported output format: {}", ext);
     }

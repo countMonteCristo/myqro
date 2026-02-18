@@ -102,6 +102,39 @@ void SvgOutputter::OutputImpl(const Canvas& canvas, const OutputOptions& options
 
 // =============================================================================
 
+void EpsOutputter::OutputImpl(const Canvas& canvas, const OutputOptions& options)
+{
+    int llx, lly, urx, ury;
+    llx = lly = -options.indent;
+    urx = ury = (static_cast<int>(canvas.Size()) + options.indent);
+
+    Stream() << "%!PS-Adobe-3.0 EPSF-3.0" << std::endl
+             << "%%BoundingBox: " << llx << ' ' << lly
+                                  << ' ' << urx << ' ' << ury << std::endl
+             << "%%Title: QR-code generated using myqro library" << std::endl
+             << "%%EndComments" << std::endl;
+
+    Stream() << "1.0 1.0 1.0 setrgbcolor" << std::endl
+             << llx << ' ' << lly << ' ' << urx << ' ' << ury << " rectfill" << std::endl;
+
+    Stream() << "0.0 0.0 0.0 setrgbcolor" << std::endl;
+    for (size_t row = 0; row < canvas.Size(); row++)
+    {
+        for (size_t col = 0; col < canvas.Size(); col++)
+        {
+            const Cell& cell = canvas.At(row, col);
+            if (cell.value == WHITE)
+                continue;
+
+            Stream() <<  col << ' ' << canvas.Size() - row << ' ' << "1 1 rectfill" << std::endl;
+        }
+    }
+
+    Stream() << "%%EOF" << std::endl;
+}
+
+// =============================================================================
+
 } // namespace myqro
 
 // =============================================================================
