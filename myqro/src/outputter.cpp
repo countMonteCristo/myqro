@@ -34,6 +34,18 @@ void ConsoleOutputter::OutputImpl(const Canvas& canvas, const OutputOptions& opt
 
 // =============================================================================
 
+void ImprintOutputter::OutputImpl(const Canvas& canvas, const OutputOptions& options)
+{
+    UNUSED(options);
+    for (size_t row = 0; row < canvas.Size(); row++)
+    {
+        for (size_t col = 0; col < canvas.Size(); col++)
+            stream_ << " #"[canvas.At(row, col).value];
+    }
+}
+
+// =============================================================================
+
 void PBMOutputter::OutputImpl(const Canvas& canvas, const OutputOptions& options)
 {
     int size = (static_cast<int>(canvas.Size()) + 2*options.indent) * options.scale;

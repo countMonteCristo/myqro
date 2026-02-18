@@ -89,6 +89,21 @@ private:
 
 // =============================================================================
 
+class ImprintOutputter : public Outputter
+{
+    public:
+    ImprintOutputter(std::ostream& os) :
+        Outputter(),
+        stream_(os)
+    {}
+
+    void OutputImpl(const Canvas& canvas, const OutputOptions& options) final;
+private:
+    std::ostream& stream_;
+};
+
+// =============================================================================
+
 class PBMOutputter : public FileOutputter
 {
 public:

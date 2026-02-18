@@ -129,43 +129,20 @@ void Canvas::FillData(CorrectionLevel cl, size_t mask_id, const DataStream& stre
     if (mask_id >= MaskFunctions.size())
         throw Error(std::format("No such mask_id: {}", mask_id));
 
-    static const std::array<Dir, 2> dd[2]{
-        {Dir{0, -1}, Dir{-1, 1}},   // up
-        {Dir{0, -1}, Dir{1,  1}},   // down
-    };
-
     auto mask = MaskFunctions[mask_id];
     PlaceCorrectionMaskCode(cl, mask_id);
 
-    size_t index = 0;
-    size_t n_strip = size_ / 2;
-    for (size_t i = 0; i < n_strip; i++)
+    auto fun = [&stream, mask, this](size_t index, size_t r, size_t c)
     {
-        uint8_t down = i % 2;
-        int r = down ? 0 : size_ - 1;
-        int c = size_ - 1 - 2 * i;
-        if (c <= SEARCH_PATTERN_SIZE - 2)
-            c--;
+        uint8_t value = (index >= stream.Size()) ? 0 : stream.BitAt(index);
+        uint8_t module_value = 1 - (value ^ (mask(c, r) != 0));
+        At(r, c) = {Pattern::DATA, module_value};
+        index++;
+    };
 
-        uint8_t d = 0;
-        while (IsInside(r, c))
-        {
-            const Dir& dir = dd[down][d];
-
-            if (At(r, c).kind == Pattern::UNKNOWN)
-            {
-                uint8_t value = (index >= stream.Size()) ? 0 : stream.BitAt(index);
-                uint8_t module_value = 1 - (value ^ (mask(c, r) != 0));
-                At(r, c) = {Pattern::DATA, module_value};
-                index++;
-            }
-
-            r += dir.dr;
-            c += dir.dc;
-            d = 1 - d;
-        }
-    }
+    IterateDataModules(Pattern::UNKNOWN, fun);
 }
+
 
 // =============================================================================
 
@@ -185,63 +162,24 @@ void Canvas::DebugPatterns(std::ostream& os) const
 
 // =============================================================================
 
-// TODO: rewrite it using pattern values
-void Canvas::DebugOutputFillDataOrder(std::ostream& os, CorrectionLevel cl, size_t mask_id)
+void Canvas::DebugOutputFillDataOrder(std::ostream& os)
 {
-    static const std::array<Dir, 2> dd[2]{
-        {Dir{0, -1}, Dir{-1, 1}},   // up
-        {Dir{0, -1}, Dir{1,  1}},   // down
-    };
-
-    PlaceCorrectionMaskCode(cl, mask_id);
-
     std::vector<int> modules(size_*size_, 0);
-
-    size_t index = 0;
-    size_t n_strip = size_ / 2;
-    for (size_t i = 0; i < n_strip; i++)
+    for (size_t i = 0; i < cells_.size(); ++i)
     {
-        uint8_t down = i % 2;
-        int r_start = down ? 0 : size_ - 1;
-        int c_start = size_ - 1 - 2*i;
-        if (c_start <= SEARCH_PATTERN_SIZE - 2)
-            c_start -= 1;
-
-        int dr = down ? 1 : -1;
-        // find first empty module
-        int r;
-        for (r = r_start; At(r, c_start).kind != Pattern::UNKNOWN; r += dr)
-        {
-            modules[Index(r, c_start)] = -1;
-            modules[Index(r, c_start) - 1] = -1;
-        }
-
-        int c = c_start;
-        uint8_t d = 0;
-        while (IsInside(r, c))
-        {
-            const Dir& dir = dd[down][d];
-            if (At(r, c).kind != Pattern::UNKNOWN)
-            {
-                modules[Index(r, c)] = -1;
-            }
-            else
-            {
-                modules[Index(r, c)] = index;
-                index++;
-            }
-
-            r += dir.dr;
-            c += dir.dc;
-            d = 1 - d;
-        }
+        const Cell& cell = cells_[i];
+        modules[i] = (cell.kind == Pattern::DATA) ? 0 : -static_cast<int>(cell.kind);
     }
+
+    IterateDataModules(Pattern::DATA, [&modules, this](size_t i, size_t r, size_t c){
+        modules[Index(r, c)] = i;
+    });
 
     for (size_t row = 0; row < size_; row++)
     {
         for (size_t col = 0; col < size_; col++)
         {
-            int v = modules[row*size_+col];
+            int v = modules[Index(row, col)];
             os << std::format("{:>4}", v);
             if (col + 1 != size_) os << " ";
         }
@@ -371,18 +309,6 @@ size_t Canvas::Penalty(size_t mask_id) const
 
 // =============================================================================
 
-std::string Canvas::Imprint() const
-{
-    std::string result(cells_.size(), '0');
-    for (size_t i = 0; i < cells_.size(); ++i)
-    {
-        result[i] = " #"[cells_[i].value];
-    }
-    return result;
-}
-
-// =============================================================================
-
 void Canvas::PlaceSearchPattern(int row, int col)
 {
     for (int r = row; r <= row + SEARCH_PATTERN_SIZE; r++)
@@ -425,12 +351,14 @@ void Canvas::PlaceSearchPattern(int row, int col)
 
 void Canvas::PlaceLevelingPattern(int row, int col)
 {
+    static const int half_size = 2;
     // check if leveling pattern intersects with search pattern
-    for (int r = row - 2; r <= row + 2; r++)
+    for (int r = row - half_size; r <= row + half_size; r++)
     {
-        for (int c = col - 2; c <= col + 2; c++)
+        for (int c = col - half_size; c <= col + half_size; c++)
         {
-            if (!IsInside(r, c)) continue;
+            if (!IsInside(r, c))
+                throw Error("Trying to place leveling pattern outside of the code canvas");
             Cell& cell = At(r, c);
             if (cell.kind == Pattern::SEARCH)
             {
@@ -441,21 +369,15 @@ void Canvas::PlaceLevelingPattern(int row, int col)
         }
     }
 
-    for (int r = row - 2; r <= row + 2; r++)
+    for (int r = row - half_size; r <= row + half_size; r++)
     {
-        for (int c = col - 2; c <= col + 2; c++)
+        for (int c = col - half_size; c <= col + half_size; c++)
         {
-            if (!IsInside(r, c)) continue;
             Cell& cell = At(r, c);
-            if (cell.kind != Pattern::UNKNOWN)
-            {
-                LogDebug("Can't place leveling pattern module at ({},{}): module is occupied with {}",
-                         r, c, PatternNameToString(cell.kind));
-                continue;
-            }
-
             cell.kind = Pattern::LEVELING;
-            if (r == row - 2 || r == row + 2 || c == col - 2 || c == col + 2 || (r == row && c == col))
+            if ((r == row - half_size) || (r == row + half_size) ||
+                (c == col - half_size) || (c == col + half_size) ||
+                (r == row && c == col))
                 cell.value = BLACK;
             else
                 cell.value = WHITE;
@@ -537,6 +459,42 @@ bool Canvas::HasColorStripe(size_t row, size_t col, int dr, int dc, size_t len, 
         if (!IsInside(r, c) || At(r, c).value != color) return false;
     }
     return true;
+}
+
+// =============================================================================
+
+void Canvas::IterateDataModules(Pattern pattern, std::function<void(size_t, size_t, size_t)> f)
+{
+    static const std::array<Dir, 2> dd[2]{
+        {Dir{0, -1}, Dir{-1, 1}},   // up
+        {Dir{0, -1}, Dir{1,  1}},   // down
+    };
+
+    size_t index = 0;
+    size_t n_strip = size_ / 2;
+    for (size_t i = 0; i < n_strip; i++)
+    {
+        uint8_t down = i % 2;
+        int r = down ? 0 : size_ - 1;
+        int c = size_ - 1 - 2 * i;
+        if (c <= SEARCH_PATTERN_SIZE - 2)
+            c--;
+
+        uint8_t d = 0;
+        while (IsInside(r, c))
+        {
+            if (At(r, c).kind == pattern)
+            {
+                f(index, r, c);
+                index++;
+            }
+
+            const Dir& dir = dd[down][d];
+            r += dir.dr;
+            c += dir.dc;
+            d = 1 - d;
+        }
+    }
 }
 
 // =============================================================================

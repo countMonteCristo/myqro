@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <ostream>
 #include <vector>
 
@@ -62,15 +63,13 @@ public:
     void FillData(CorrectionLevel cl, size_t mask_id, const DataStream& stream);
 
     void DebugPatterns(std::ostream& os) const;
-    void DebugOutputFillDataOrder(std::ostream& os, CorrectionLevel cl, size_t mask_id);
+    void DebugOutputFillDataOrder(std::ostream& os);
 
     Cell& At(size_t row, size_t col) { return cells_[Index(row, col)]; }
     const Cell& At(size_t row, size_t col) const { return cells_[Index(row, col)]; }
     bool IsInside(int row, int col) const { return row >= 0 && row < static_cast<int>(size_) && col >= 0 && col < static_cast<int>(size_); }
 
     size_t Penalty(size_t mask_id) const;
-
-    std::string Imprint() const;
 
     size_t Version() const { return version_; }
     size_t Size() const { return size_; }
@@ -83,6 +82,8 @@ private:
 
     bool HasSameColorSquare(size_t row, size_t col, size_t sq) const;
     bool HasColorStripe(size_t row, size_t col, int dr, int dc, size_t len, uint8_t color=WHITE) const;
+
+    void IterateDataModules(Pattern pattern, std::function<void(size_t, size_t, size_t)> f);
 
 private:
     size_t version_;

@@ -157,24 +157,18 @@ bool AlphaNumericEncodeProvider::IsDataSupported(const std::string& data) const
 
 void AlphaNumericEncodeProvider::ConvertInput(const std::string& data, Context& context) const
 {
-    for (size_t i = 0; i < data.size(); i += 2)
-    {
-        size_t tail = data.size() - i;
-        uint8_t mask_size = 0;
-        uint16_t result = 0;
+    static const size_t max_mask_size = 2;
+    static const std::array<uint8_t, max_mask_size> mask_sizes{6, 11};
 
-        if (tail == 1)
-        {
-            result = chars_.at(data[i]);
-            mask_size = 6;
-        }
-        else
-        {
-            size_t code1 = chars_.at(data[i]);
-            size_t code2 = chars_.at(data[i+1]);
-            result = code1 * 45 + code2;
-            mask_size = 11;
-        }
+    for (size_t i = 0; i < data.size(); i += max_mask_size)
+    {
+        size_t tail = std::min(data.size() - i, max_mask_size);
+        uint8_t mask_size = mask_sizes[tail - 1];
+
+        uint16_t result = 0;
+        for (size_t j = 0; j < tail; j++)
+            result = result * 45 + chars_.at(data[i+j]);
+
         context.stream.AppendBits(result, mask_size);
     }
 }
@@ -194,27 +188,18 @@ bool NumericEncodeProvider::IsDataSupported(const std::string& data) const
 
 void NumericEncodeProvider::ConvertInput(const std::string& data, Context& context) const
 {
-    for (size_t i = 0; i < data.size(); i += 3)
-    {
-        size_t tail = data.size() - i;
-        uint8_t mask_size = 0;
-        uint16_t result = 0;
+    static const size_t max_mask_size = 3;
+    static const std::array<uint8_t, max_mask_size> mask_sizes{4, 7, 10};
 
-        if (tail == 1)
-        {
-            result = data[i] - '0';
-            mask_size = 4;
-        }
-        else if (tail == 2)
-        {
-            result = (data[i] - '0') * 10 + (data[i+1] - '0');
-            mask_size = 7;
-        }
-        else
-        {
-            result = (data[i] - '0') * 100 + (data[i+1] - '0') * 10 + (data[i+2] - '0');
-            mask_size = 10;
-        }
+    for (size_t i = 0; i < data.size(); i += max_mask_size)
+    {
+        size_t tail = std::min(data.size() - i, max_mask_size);
+        uint8_t mask_size = mask_sizes[tail - 1];
+
+        uint16_t result = 0;
+        for (size_t j = 0; j < tail; j++)
+            result = result * 10 + (data[i+j] - '0');
+
         context.stream.AppendBits(result, mask_size);
     }
 }
@@ -223,6 +208,7 @@ void NumericEncodeProvider::ConvertInput(const std::string& data, Context& conte
 
 bool BytesEncodeProvider::IsDataSupported(const std::string&) const
 {
+    // TODO: check if string is UTF-8
     return true;
 }
 
@@ -230,7 +216,6 @@ bool BytesEncodeProvider::IsDataSupported(const std::string&) const
 
 void BytesEncodeProvider::ConvertInput(const std::string& data, Context& context) const
 {
-    // TODO: check if string is UTF-8
     for (char c : data)
         context.stream.AppendBits(static_cast<uint8_t>(c), BITS_PER_BYTE);
 }

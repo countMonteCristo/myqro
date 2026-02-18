@@ -41,20 +41,13 @@ void DataStream::SetBitAt(size_t pos, uint8_t bit)
     if (bit > 1)
         throw Error("Only values 0 and 1 are suported as bit value");
 
-    size_t byte_pos = pos / BITS_PER_BYTE;
-    size_t rem = pos % BITS_PER_BYTE;
-
-    uint8_t& byte = data_.at(byte_pos);
-    uint8_t mask = (1 << (BITS_PER_BYTE - 1 - rem));
+    std::div_t result = std::div(static_cast<int>(pos), BITS_PER_BYTE);
+    uint8_t& byte = data_.at(result.quot);
+    uint8_t mask = (1 << (BITS_PER_BYTE - 1 - result.rem));
     if (bit == 1)
-    {
         byte |= mask;
-    }
     else
-    {
-        mask = ~mask;
-        byte &= mask;
-    }
+        byte &= ~mask;
 }
 
 // =============================================================================
@@ -71,16 +64,9 @@ std::vector<Block> DataStream::GenerateBlocks(size_t count)
     ArrayType::iterator it = data_.begin();
     for (size_t i = 0; i < count; i++)
     {
-        if (i < n_ordinary)
-        {
-            result.emplace_back(it, it + n_bytes_per_block);
-            it += n_bytes_per_block;
-        }
-        else
-        {
-            result.emplace_back(it, it + n_bytes_per_block + 1);
-            it += n_bytes_per_block + 1;
-        }
+        size_t n_delta = (i < n_ordinary) ? 0 : 1;
+        result.emplace_back(it, it + n_bytes_per_block + n_delta);
+        it += n_bytes_per_block + n_delta;
     }
 
     return result;

@@ -1,6 +1,7 @@
 #include <cppunit/extensions/HelperMacros.h>
 
 #include "encoder.hpp"
+#include "outputter.hpp"
 
 
 // =============================================================================
@@ -629,8 +630,11 @@ void TestQR::TestQrBytesEncoding()
     for (const auto& [params, expected]: cases)
     {
         Canvas canvas = Encoder::Encode(params.msg, params.cl, params.encoding, params.mask_id);
+        std::stringstream ss;
+        ImprintOutputter(ss).Output(canvas);
+
         CPPUNIT_ASSERT_EQUAL(expected.version, canvas.Version());
-        CPPUNIT_ASSERT_EQUAL(expected.imprint, canvas.Imprint());
+        CPPUNIT_ASSERT_EQUAL(expected.imprint, ss.str());
     }
 }
 
