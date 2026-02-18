@@ -16,7 +16,7 @@ This library was written moslty in educational purposes. Use it in your own risk
 ### Installation
 1. Install dependencies:
 ```sh
-$ sudo apt-get install gcc cmake libcppunit
+$ sudo apt-get install gcc cmake libcppunit-dev
 ```
 
 2. Clone the repo:
