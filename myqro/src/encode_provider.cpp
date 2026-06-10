@@ -227,7 +227,7 @@ EncodeProviderPtr EncodeProviderFactory::GetProvider(EncodingType type)
     switch (type)
     {
         case EncodingType::ALPHANUMERIC : return std::make_unique<AlphaNumericEncodeProvider>();
-        case EncodingType::NUNERIC      : return std::make_unique<NumericEncodeProvider>();
+        case EncodingType::NUMERIC      : return std::make_unique<NumericEncodeProvider>();
         case EncodingType::BYTES        : return std::make_unique<BytesEncodeProvider>();
         case EncodingType::KANJI        : throw Error("Kanji encoder is not supported");
         default                         : throw Error("Unknown encoding type");

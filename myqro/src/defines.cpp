@@ -15,7 +15,7 @@ namespace myqro
 
 EncodingType EncodingTypeFromString(const std::string& type_str)
 {
-    if (type_str == "num")   return EncodingType::NUNERIC;
+    if (type_str == "num")   return EncodingType::NUMERIC;
     if (type_str == "alnum") return EncodingType::ALPHANUMERIC;
     if (type_str == "bytes") return EncodingType::BYTES;
     if (type_str == "kanji") return EncodingType::KANJI;
@@ -28,7 +28,7 @@ const char* EncodingTypeToString(EncodingType e)
 {
     switch (e)
     {
-        case EncodingType::NUNERIC: return "num";
+        case EncodingType::NUMERIC: return "num";
         case EncodingType::ALPHANUMERIC: return "alnum";
         case EncodingType::BYTES: return "bytes";
         case EncodingType::KANJI: return "kanji";

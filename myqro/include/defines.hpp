@@ -20,7 +20,7 @@ namespace myqro
 
 enum class EncodingType : uint8_t
 {
-    NUNERIC         = 0b0001,
+    NUMERIC         = 0b0001,
     ALPHANUMERIC    = 0b0010,
     BYTES           = 0b0100,
     KANJI           = 0b1111,
@@ -90,7 +90,7 @@ inline const std::unordered_map<CorrectionLevel, std::array<size_t, VERSION_ARRA
 // =============================================================================
 
 inline const std::unordered_map<EncodingType, std::unordered_map<size_t, size_t>> DataSizeFieldWidth{
-    {EncodingType::NUNERIC,      {{9, 10}, {26, 12}, {MAX_VERSION, 14}}},
+    {EncodingType::NUMERIC,      {{9, 10}, {26, 12}, {MAX_VERSION, 14}}},
     {EncodingType::ALPHANUMERIC, {{9,  9}, {26, 11}, {MAX_VERSION, 13}}},
     {EncodingType::BYTES,        {{9,  8}, {26, 16}, {MAX_VERSION, 16}}},
 };

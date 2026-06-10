@@ -19,6 +19,10 @@ class Error : public std::exception
         message_(msg)
     {}
 
+    Error(std::string&& msg) :
+        message_(std::move(msg))
+    {}
+
     const char* what() const noexcept override { return message_.c_str(); }
 
 private:

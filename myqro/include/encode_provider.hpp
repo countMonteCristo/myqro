@@ -47,7 +47,7 @@ public:
     bool IsDataSupported(const std::string& data) const final;
 
     const char* GetProviderName() const final { return "NumericEncodeProvider"; }
-    EncodingType GetEncodingType() const final { return EncodingType::NUNERIC; }
+    EncodingType GetEncodingType() const final { return EncodingType::NUMERIC; }
 
     void ConvertInput(const std::string& data, Context& context) const final;
 

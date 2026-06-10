@@ -40,7 +40,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION(TestEncoder);
 
 void TestEncoder::TestEncodingTypeNumeric()
 {
-    auto p = myqro::EncodeProviderFactory::GetProvider(myqro::EncodingType::NUNERIC);
+    auto p = myqro::EncodeProviderFactory::GetProvider(myqro::EncodingType::NUMERIC);
     for (const auto& data: {"12345", "910239471298467812", "29863812"})
         CPPUNIT_ASSERT_EQUAL(true, p->IsDataSupported(data));
     for (const auto& data: {"12345 ", "910s239471298467812", "298.63812"})
@@ -61,7 +61,7 @@ void TestEncoder::TestEncodingAlphaNumeric()
 void TestEncoder::TestConvertInput()
 {
     using Case = std::tuple<myqro::EncodingType, const char*, const char*>;
-    for (auto [e, input, expected]: {Case{myqro::EncodingType::NUNERIC,      "12345678", "000111101101110010001001110"},
+    for (auto [e, input, expected]: {Case{myqro::EncodingType::NUMERIC,      "12345678", "000111101101110010001001110"},
                                      Case{myqro::EncodingType::ALPHANUMERIC, "HELLO",    "0110000101101111000110011000"},
                                      Case{myqro::EncodingType::BYTES,        "Хабр",     "1101000010100101110100001011000011010000101100011101000110000000"},})
     {
@@ -79,7 +79,7 @@ void TestEncoder::TestConvertInput()
 void TestEncoder::TestAddTailZeros()
 {
     Context ctx("", CorrectionLevel::M);
-    auto p = myqro::EncodeProviderFactory::GetProvider(myqro::EncodingType::NUNERIC);
+    auto p = myqro::EncodeProviderFactory::GetProvider(myqro::EncodingType::NUMERIC);
     ctx.stream.SetBitSize(13);
     ctx.stream.SetBitAt(12, 1);
 
@@ -96,7 +96,7 @@ void TestEncoder::TestAddRequiredVersionTailBytes()
 {
     Context ctx("", CorrectionLevel::M);
     ctx.max_data_size = 32;
-    auto p = myqro::EncodeProviderFactory::GetProvider(myqro::EncodingType::NUNERIC);
+    auto p = myqro::EncodeProviderFactory::GetProvider(myqro::EncodingType::NUMERIC);
     ctx.stream.SetBitSize(8);
     ctx.stream.SetBitAt(7, 1);
 
@@ -118,6 +118,7 @@ void TestEncoder::TestGenCorrBlock()
     myqro::Block block{a.begin(), a.end()};
 
     myqro::ArrayType x = myqro::GenerateCorrectionBlock(block, n_corr_bytes);
+    CPPUNIT_ASSERT(expected == x);
 }
 
 } // namespace myqro::test
